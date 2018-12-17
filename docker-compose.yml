@@ -29,7 +29,7 @@ services:
   cron:
     image: "wizofgoz/evecommander-php:${BRANCH}-latest"
     env_file: "${PHP_ENV_PATH}"
-    command: ["/bin/sh", "-c", "env /bin/bash -o posix -c 'export -p' > /etc/cron.d/project_env.sh && chmod +x /etc/cron.d/project_env.sh && crond -l 2 -f"]
+    command: ["/bin/sh", "-c", "env /bin/bash -o posix -c 'export -p' > /var/cron/project_env.sh && chmod +x /var/cron/project_env.sh && crond -l 2 -f"]
     volumes:
       - localphp:/var/www/html/storage
     links:
