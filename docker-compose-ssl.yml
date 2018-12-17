@@ -1,0 +1,11 @@
+version: "3"
+services:
+  angular:
+    environment:
+      LETSENCRYPT_HOST: "${DOMAIN_NAME_PREFIX}${DOMAIN_NAME_BASE}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+
+  php-nginx:
+    environment:
+      LETSENCRYPT_HOST: "${DOMAIN_NAME_PREFIX}api.${DOMAIN_NAME_BASE}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"

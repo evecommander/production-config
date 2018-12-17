@@ -1,88 +1,54 @@
-version: "2"
+version: "3"
+
 services:
-  nginx-proxy:
-    container_name: proxy
-    image: jwilder/nginx-proxy:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - "./proxy/vhost.d:/etc/nginx/vhost.d"
-      - "./proxy/html:/usr/share/nginx/html"
-      - "/var/run/docker.sock:/tmp/docker.sock:ro"
-      - "./proxy/certs:/etc/nginx/certs"
-    depends_on:
-      - php-nginx
-    networks:
-      - docker-network
-
-  letsencrypt-nginx-proxy-companion:
-    container_name: letsencrypt-companion
-    image: jrcs/letsencrypt-nginx-proxy-companion
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    volumes_from:
-      - nginx-proxy
-
-  frontend:
-    container_name: angular
-    image: wizofgoz/evecommander-web:latest
+  angular:
+    image: wizofgoz/evecommander-web:master
     environment:
-      VIRTUAL_HOST: evecommander.com
-      LETSENCRYPT_HOST: evecommander.com
-      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+      VIRTUAL_HOST: "${DOMAIN_NAME_PREFIX}${DOMAIN_NAME_BASE}"
 
   php-nginx:
-    container_name: php-nginx
-    image: wizofgoz/evecommander-nginx:latest
+    image: "wizofgoz/evecommander-nginx:${BRANCH}-latest"
     environment:
-      VIRTUAL_HOST: api.evecommander.com
-      LETSENCRYPT_HOST: api.evecommander.com
-      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+      VIRTUAL_HOST: "${DOMAIN_NAME_PREFIX}api.${DOMAIN_NAME_BASE}"
     depends_on:
       - php-fpm
-    networks:
-      - docker-network
+    links:
+      - php-fpm
 
   php-fpm:
-    container_name: php-fpm
-    image: wizofgoz/evecommander-php:latest
-    env_file: "${PHP_ENV}"
+    image: "wizofgoz/evecommander-php:${BRANCH}-latest"
+    env_file: "${PHP_ENV_PATH}"
     ports:
       - "9000:9000"
     volumes:
       - localphp:/var/www/html/storage
     links:
+      - pgsql
       - redis
-    networks:
-      - docker-network
 
   cron:
-    container_name: cron
-    image: wizofgoz/evecommander-php:latest
-    command: ["/bin/sh", "-c", "env /bin/bash -o posix -c 'export -p' > /etc/cron.d/project_env.sh && chmod +x /etc/cron.d/project_env.sh && crontab /etc/cron.d/artisan-schedule-run && cron && tail -f /var/log/cron.log"]
+    image: "wizofgoz/evecommander-php:${BRANCH}-latest"
+    env_file: "${PHP_ENV_PATH}"
+    command: ["/bin/sh", "-c", "env /bin/bash -o posix -c 'export -p' > /etc/cron.d/project_env.sh && chmod +x /etc/cron.d/project_env.sh && crond -l 2 -f"]
     volumes:
       - localphp:/var/www/html/storage
     links:
+      - pgsql
       - redis
-    networks:
-      - docker-network
 
   worker:
-    container_name: worker
-    image: wizofgoz/evecommander-php:latest
+    image: "wizofgoz/evecommander-php:${BRANCH}-latest"
+    env_file: "${PHP_ENV_PATH}"
     depends_on:
       - redis
     command: ["php", "artisan", "queue:work"]
     volumes:
       - localphp:/var/www/html/storage
     links:
+      - pgsql
       - redis
-    networks:
-      - docker-network
 
   pgsql:
-    container_name: pgsql
     image: postgres:11-alpine
     restart: always
     ports:
@@ -93,11 +59,8 @@ services:
       POSTGRES_PASSWORD: "${PGSQL_PASSWORD}"
     volumes:
       - localpgsql:/var/lib/postgresql/data
-    networks:
-      - docker-network
 
   echo:
-    container_name: echo
     image: lagun4ik/laravel-echo-server
     ports:
       - "1194:1194/udp"
@@ -106,16 +69,11 @@ services:
       - ./echo/:/app/
     links:
       - redis
-    networks:
-      - docker-network
 
   redis:
-    container_name: redis
     image: redis:alpine
     volumes:
       - localredis:/data
-    networks:
-      - docker-network
 
 volumes:
   localphp:
@@ -128,5 +86,6 @@ volumes:
     driver: "local"
 
 networks:
-  docker-network:
-    driver: bridge
+  default:
+    external:
+      name: service-tier
