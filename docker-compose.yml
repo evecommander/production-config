@@ -41,7 +41,7 @@ services:
     env_file: "${PHP_ENV_PATH}"
     depends_on:
       - redis
-    command: ["php", "artisan", "queue:work"]
+    command: ["php", "artisan", "horizon"]
     volumes:
       - localphp:/var/www/html/storage
     links:
